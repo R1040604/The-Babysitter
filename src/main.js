@@ -4,7 +4,9 @@ import './style.css';
 const container = document.querySelector('#scene');
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color('#101812');
+const horizonColor = new THREE.Color('#343434');
+scene.background = horizonColor;
+scene.fog = new THREE.FogExp2(horizonColor, 0.03);
 
 const camera = new THREE.PerspectiveCamera(
   40,
@@ -44,11 +46,16 @@ const cube = new THREE.Mesh(
 scene.add(cube);
 
 const floor = new THREE.Mesh(
-  new THREE.CircleGeometry(5, 64),
-  new THREE.MeshBasicMaterial({ color: '#17251b' }),
+  new THREE.PlaneGeometry(200, 200),
+  new THREE.MeshStandardMaterial({
+    color: '#1f4d2b',
+    roughness: 0.95,
+    metalness: 0,
+  }),
 );
 floor.rotation.x = -Math.PI / 2;
-floor.position.y = -1.35;
+floor.position.y = -0.9;
+floor.receiveShadow = true;
 scene.add(floor);
 
 let pointerDown = false;
