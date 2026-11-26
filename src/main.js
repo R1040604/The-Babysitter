@@ -1,94 +1,19 @@
-import * as THREE from 'three';
 import './style.css';
+import { Clock, Vector3 } from 'three';
+import { createScene } from './scene.js';
+import { createVehicle } from './vehicle.js';
+import { createControls } from './controls.js';
+import { createFollowCamera } from './camera.js';
+import { VEHICLE_SPEED, VEHICLE_TURN_SPEED } from './config.js';
 
 const container = document.querySelector('#scene');
+const { scene, camera, renderer } = createScene(container);
+const vehicle = createVehicle();
+const controls = createControls();
+const followCamera = createFollowCamera();
+const clock = new Clock();
 
-const scene = new THREE.Scene();
-const horizonColor = new THREE.Color('#343434');
-scene.background = horizonColor;
-scene.fog = new THREE.FogExp2(horizonColor, 0.03);
-
-const camera = new THREE.PerspectiveCamera(
-  40,
-  window.innerWidth / window.innerHeight,
-  0.1,
-  100,
-);
-camera.position.set(4, 3, 5);
-camera.lookAt(0, 0, 0);
-
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.15;
-container.appendChild(renderer.domElement);
-
-scene.add(new THREE.AmbientLight('#c7f5d2', 1.5));
-
-const keyLight = new THREE.DirectionalLight('#ffffff', 3);
-keyLight.position.set(3, 5, 4);
-scene.add(keyLight);
-
-const fillLight = new THREE.DirectionalLight('#57ff91', 1.5);
-fillLight.position.set(-4, 1, -3);
-scene.add(fillLight);
-
-const cube = new THREE.Mesh(
-  new THREE.BoxGeometry(1.8, 1.8, 1.8),
-  new THREE.MeshStandardMaterial({
-    color: '#43e879',
-    roughness: 0.32,
-    metalness: 0.08,
-  }),
-);
-scene.add(cube);
-
-const floor = new THREE.Mesh(
-  new THREE.PlaneGeometry(200, 200),
-  new THREE.MeshStandardMaterial({
-    color: '#1f4d2b',
-    roughness: 0.95,
-    metalness: 0,
-  }),
-);
-floor.rotation.x = -Math.PI / 2;
-floor.position.y = -0.9;
-floor.receiveShadow = true;
-scene.add(floor);
-
-let pointerDown = false;
-let previousX = 0;
-let previousY = 0;
-
-renderer.domElement.addEventListener('pointerdown', (event) => {
-  pointerDown = true;
-  previousX = event.clientX;
-  previousY = event.clientY;
-  renderer.domElement.setPointerCapture(event.pointerId);
-});
-
-renderer.domElement.addEventListener('pointermove', (event) => {
-  if (!pointerDown) return;
-  cube.rotation.y += (event.clientX - previousX) * 0.01;
-  cube.rotation.x += (event.clientY - previousY) * 0.01;
-  previousX = event.clientX;
-  previousY = event.clientY;
-});
-
-renderer.domElement.addEventListener('pointerup', () => {
-  pointerDown = false;
-});
-
-renderer.domElement.addEventListener(
-  'wheel',
-  (event) => {
-    camera.position.multiplyScalar(event.deltaY > 0 ? 1.08 : 0.92);
-    camera.position.clampLength(3, 10);
-  },
-  { passive: true },
-);
+scene.add(vehicle);
 
 function resize() {
   const width = window.innerWidth;
@@ -101,9 +26,19 @@ function resize() {
 window.addEventListener('resize', resize);
 
 function animate() {
-  if (!pointerDown) {
-    cube.rotation.y += 0.003;
+  const delta = Math.min(clock.getDelta(), 0.05);
+
+  if (controls.throttle !== 0) {
+    vehicle.rotation.y += controls.steering * VEHICLE_TURN_SPEED * controls.throttle * delta;
   }
+
+  if (controls.throttle !== 0) {
+    const forward = new Vector3(0, 0, -1).applyQuaternion(vehicle.quaternion);
+    vehicle.position.addScaledVector(forward, controls.throttle * VEHICLE_SPEED * delta);
+  }
+
+  followCamera.update(camera, vehicle, delta);
+
   renderer.render(scene, camera);
 }
 
